@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Verification - Professional Dark Mode</title>
+    <script src="https://www.google.com/recaptcha/api.js?onload=onloadCallback&render=explicit" async defer></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
+
+        :root {
+            --color-primary: #3498DB; --color-success: #2ECC71; --color-danger: #E74C3C;
+            --color-warning: #F39C12; --color-bg: #121212; --color-surface: #1E1E1E;
+            --color-text: #EAEAEA; --color-text-light: #A0A0A0; --color-border: #333333;
+            --color-disabled: #444444;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif; background-color: var(--color-bg); color: var(--color-text);
+            margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; box-sizing: border-box;
+        }
+
+        .main-container {
+            background-color: var(--color-surface); border-radius: 20px; box-shadow: 0 10px 50px rgba(0, 0, 0, 0.3);
+            width: 100%; max-width: 600px; padding: 32px; box-sizing: border-box; text-align: center;
+            border: 1px solid var(--color-border);
+        }
+
+        h1 { color: var(--color-text); margin-top: 0; margin-bottom: 24px; font-weight: 700; }
+
+        .task-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 16px; }
+        .task-item { position: relative; }
+
+        .status-icon {
+            position: absolute; top: 10px; right: 10px; width: 28px; height: 28px; display: flex;
+            justify-content: center; align-items: center; z-index: 10; border-radius: 50%;
+            transform: scale(0); transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), background-color 0.3s ease;
+        }
+        .status-icon svg { transition: all 0.3s ease; }
+
+        .task-item.loading .status-icon, .task-item.completed .status-icon { transform: scale(1); }
+        .task-item.loading .status-icon { background-color: rgba(255, 255, 255, 0.1); }
+        .task-item.loading .status-icon svg { animation: spin 1s linear infinite; stroke: var(--color-primary); }
+        .task-item.completed .status-icon { background-color: var(--color-success); }
+        .task-item.completed .status-icon svg { stroke: white; }
+
+        .task-box {
+            display: flex; align-items: center; padding: 16px; background-color: transparent;
+            border: 1px solid var(--color-border); border-radius: 12px; text-decoration: none;
+            color: inherit; cursor: pointer; transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+        }
+        .task-box:hover { transform: translateY(-4px); border-color: var(--color-primary); box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2); }
+        .task-box:active { transform: translateY(0px) scale(0.98); box-shadow: none; }
+        .task-item.completed .task-box, .task-item.loading .task-box { cursor: not-allowed; opacity: 0.6; }
+
+        .icon-container { flex-shrink: 0; margin-right: 16px; width: 48px; height: 48px; display: flex; justify-content: center; align-items: center; background-color: rgba(255, 255, 255, 0.05); border-radius: 50%; }
+        .icon-container svg { stroke: var(--color-text-light); width: 24px; height: 24px; }
+        .text-container { flex-grow: 1; text-align: left; }
+        .text-container h3 { margin: 0 0 4px 0; font-size: 16px; font-weight: 600; color: var(--color-text); }
+        .text-container p { margin: 0; font-size: 14px; color: var(--color-text-light); }
+        
+        #ad-container { margin: 24px 0; display: flex; justify-content: center; align-items: center; min-height: 50px; }
+
+        /* --- PEMBARUAN 1: MENGURANGI JARAK TOMBOL --- */
+        #recaptcha-container { margin-top: 16px; display: none; justify-content: center; }
+        #final-link-btn {
+            appearance: none; border: none; width: 100%; margin-top: 16px; padding: 16px; /* Margin diperkecil */
+            font-size: 16px; font-weight: 600; border-radius: 12px; color: rgba(255,255,255,0.5);
+            transition: all 0.3s ease; background-color: var(--color-disabled); cursor: not-allowed;
+        }
+        #final-link-btn.pre-active { background-color: var(--color-warning); color: #111; cursor: not-allowed; }
+        #final-link-btn.enabled { background-color: var(--color-success); color: white; cursor: pointer; box-shadow: 0 4px 15px rgba(46, 204, 113, 0.2); }
+        #final-link-btn.enabled:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(46, 204, 113, 0.3); }
+        
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        #toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 1000; display: flex; flex-direction: column; gap: 10px; }
+        .toast {
+            background-color: #2a2a2a; color: var(--color-text); padding: 12px 20px;
+            border-radius: 8px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+            border-left: 5px solid var(--color-disabled); opacity: 0; transform: translateX(100%);
+            animation: slideIn 0.5s forwards;
+        }
+        .toast.error { border-left-color: var(--color-danger); }
+        .toast.hide { animation: slideOut 0.5s forwards; }
+        @keyframes slideIn { to { opacity: 1; transform: translateX(0); } }
+        @keyframes slideOut { to { opacity: 0; transform: translateX(100%); } }
+    </style>
+</head>
+<body>
+    
+    <div id="toast-container"></div>
+    <svg style="display:none;">
+      <symbol id="icon-loader" viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></symbol>
+      <symbol id="icon-check" viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></symbol>
+    </svg>
+
+    <div class="main-container">
+        <h1>Complete Tasks to Unlock</h1>
+        <ul class="task-list">
+            <li class="task-item" data-url="https://google.com">
+                <div class="status-icon"></div>
+                <div class="task-box">
+                    <div class="icon-container"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.72"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.72-1.72"/></svg></div>
+                    <div class="text-container"><h3>Copy Important Link</h3><p>Get the latest link for our project.</p></div>
+                </div>
+            </li>
+            <li class="task-item" data-url="https://youtube.com">
+                <div class="status-icon"></div>
+                <div class="task-box">
+                    <div class="icon-container"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></div>
+                    <div class="text-container"><h3>Open Documentation</h3><p>Learn more about how to use it.</p></div>
+                </div>
+            </li>
+            <li class="task-item" data-url="https://github.com/z4tt483">
+                <div class="status-icon"></div>
+                <div class="task-box">
+                    <div class="icon-container"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="16" y1="11" x2="22" y2="11"/></svg></div>
+                    <div class="text-container"><h3>Follow Us</h3><p>Get the latest updates on social media.</p></div>
+                </div>
+            </li>
+        </ul>
+        
+        <div id="ad-container">
+            <script type='text/javascript' src='//pl27958309.effectivegatecpm.com/a1/c1/38/a1c138f8de5588c7a4be181488929ff3.js'></script>
+        </div>
+
+        <div id="recaptcha-container" data-theme="dark"></div>
+        <button id="final-link-btn" data-final-url="https://pastebin.com/N1DH8J2g">Unlock Destination Link</button>
+    </div>
+
+    <script>
+        // --- PEMBARUAN 2: LINK IKLAN BARU ---
+        const directAdLink = "https://www.effectivegatecpm.com/uae6mhecpf?key=71d48cc1d00ca959a27267b90bb2bac2";
+
+        function showToast(message, type = 'error') {
+            const toastContainer = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            toastContainer.appendChild(toast);
+
+            setTimeout(() => {
+                toast.classList.add('hide');
+                toast.addEventListener('animationend', () => toast.remove());
+            }, 3000);
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const tasks = document.querySelectorAll('.task-item');
+            const finalButton = document.getElementById('final-link-btn');
+            const recaptchaContainer = document.getElementById('recaptcha-container');
+            
+            let taskStates = Array(tasks.length).fill(false);
+            let recaptchaVerified = false;
+            let directAdShown = false; // Mencegah iklan pop-up terbuka berkali-kali
+
+            tasks.forEach((task, index) => {
+                task.addEventListener('click', () => {
+                    if (taskStates[index] || task.classList.contains('loading')) return;
+
+                    // --- PEMBARUAN 2: Memicu iklan pop-up/direct link HANYA SEKALI ---
+                    if (!directAdShown) {
+                        window.open(directAdLink, '_blank');
+                        directAdShown = true; // Tandai bahwa iklan sudah ditampilkan
+                    }
+
+                    task.classList.add('loading');
+                    task.querySelector('.status-icon').innerHTML = `<svg width="18" height="18"><use xlink:href="#icon-loader"/></svg>`;
+                    
+                    window.open(task.dataset.url, '_blank');
+                    
+                    setTimeout(() => {
+                        task.classList.remove('loading');
+                        task.classList.add('completed');
+                        taskStates[index] = true;
+                        task.querySelector('.status-icon').innerHTML = `<svg width="16" height="16"><use xlink:href="#icon-check"/></svg>`;
+                        
+                        checkAllTasksCompleted();
+                    }, 1200);
+                });
+            });
+
+            function checkAllTasksCompleted() {
+                if (taskStates.every(Boolean)) {
+                    finalButton.classList.add('pre-active');
+                    finalButton.textContent = 'Complete Security Check';
+                    recaptchaContainer.style.display = 'flex';
+                }
+            }
+            
+            finalButton.addEventListener('click', () => {
+                if (!taskStates.every(Boolean)) {
+                    showToast('Please complete all tasks above.', 'error');
+                } else if (!recaptchaVerified) {
+                    showToast('Please complete the reCAPTCHA verification first.', 'error');
+                } else {
+                    window.location.href = finalButton.dataset.finalUrl;
+                }
+            });
+
+            window.onRecaptchaSuccess = (token) => {
+                recaptchaVerified = true;
+                finalButton.classList.remove('pre-active');
+                finalButton.classList.add('enabled');
+                finalButton.textContent = 'Success! Click to Unlock';
+            };
+
+            window.onloadCallback = () => {
+                grecaptcha.render('recaptcha-container', {
+                    'sitekey' : '6Lcf0vwrAAAAAH-7vWRz0wZk_3hgOS16i6vE7dvw', // REMEMBER TO REPLACE THIS
+                    'callback' : onRecaptchaSuccess,
+                    'theme': 'dark'
+                });
+            };
+        });
+    </script>
+</body>
+</html>
